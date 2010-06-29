@@ -24,6 +24,9 @@ library
                      mtl >= 1.1.0.2 && < 1.2,
                      MonadCatchIO-mtl >= 0.3.0.1 && < 0.4
     exposed-modules: Data.Neither
+    other-modules:   Data.Neither.Base
+                     Data.Neither.Transformers
+                     Data.Neither.Mtl
     ghc-options:     -Wall
 
 source-repository head

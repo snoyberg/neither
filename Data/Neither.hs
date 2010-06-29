@@ -12,6 +12,7 @@ module Data.Neither
       -- * Monad transformer
     , MEitherT (..)
     , mapMEitherT
+    , throwMEither
     ) where
 
 import Data.Neither.Base

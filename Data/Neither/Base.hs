@@ -45,8 +45,14 @@ mapMEitherT :: (m (MEither e a) -> n (MEither e' b))
              -> MEitherT e' n b
 mapMEitherT f m = MEitherT $ f (runMEitherT m)
 
+throwMEither :: Monad m => e -> MEitherT e m a
+throwMEither = MEitherT . return . MLeft
+
 instance Functor m => Functor (MEitherT e m) where
     fmap f = MEitherT . fmap (fmap f) . runMEitherT
+instance (Functor m, Monad m) => Applicative (MEitherT e m) where
+    pure = return
+    (<*>) = ap
 instance Monad m => Monad (MEitherT e m) where
     return = MEitherT . return . return
     (MEitherT x) >>= f = MEitherT $
