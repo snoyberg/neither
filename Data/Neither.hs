@@ -2,6 +2,9 @@
 -- applicative version of Either. It does not provide a monad instance, and
 -- 'mappend's together error values. 'MEither' is the monadic version, which
 -- only holds onto the first error value. 'MEitherT' is a monad transformer.
+--
+-- Also, *Either datatypes and functions from Data.Either are generalized with Neither type class.
+
 module Data.Neither
     ( -- * Applicative version
       AEither (..)
