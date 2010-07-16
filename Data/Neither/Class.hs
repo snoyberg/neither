@@ -10,7 +10,7 @@ class Neither e where
   left :: a -> e a b
   right :: b -> e a b
   either :: (a -> c) -> (b -> c) -> e a b -> c
-  
+
 instance Neither Either where
   left = Left
   right = Right
@@ -20,7 +20,7 @@ instance Neither MEither where
   left = MLeft
   right = MRight
   either = meither
-  
+
 instance Neither AEither where
   left = ALeft
   right = ARight
