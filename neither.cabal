@@ -1,5 +1,5 @@
 name:            neither
-version:         0.0.0
+version:         0.0.1
 license:         BSD3
 license-file:    LICENSE
 author:          Michael Snoyman <michael@snoyman.com>
@@ -25,6 +25,7 @@ library
                      MonadCatchIO-mtl >= 0.3.0.1 && < 0.4
     exposed-modules: Data.Neither
     other-modules:   Data.Neither.Base
+                     Data.Neither.Class
                      Data.Neither.Transformers
                      Data.Neither.Mtl
     ghc-options:     -Wall
