@@ -1,5 +1,5 @@
 name:            neither
-version:         0.0.1
+version:         0.0.2
 license:         BSD3
 license-file:    LICENSE
 author:          Michael Snoyman <michael@snoyman.com>
@@ -22,7 +22,8 @@ library
                      transformers >= 0.2.1 && < 0.3,
                      MonadCatchIO-transformers >= 0.2.2 && < 0.3,
                      mtl >= 1.1.0.2 && < 1.2,
-                     MonadCatchIO-mtl >= 0.3.0.1 && < 0.4
+                     MonadCatchIO-mtl >= 0.3.0.1 && < 0.4,
+                     failure >= 0.1.0 && < 0.2
     exposed-modules: Data.Neither
     other-modules:   Data.Neither.Base
                      Data.Neither.Class

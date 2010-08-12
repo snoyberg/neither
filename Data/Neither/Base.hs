@@ -1,8 +1,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Data.Neither.Base where
 
 import Control.Applicative
 import Control.Monad
+import Control.Failure
 import Data.Typeable
 import Data.Data
 import Data.Monoid
@@ -18,6 +21,8 @@ instance Functor (MEither a) where
 instance Applicative (MEither a) where
     pure = return
     (<*>) = ap
+instance Failure e (MEither e) where
+    failure = MLeft
 meither :: (a -> c) -> (b -> c) -> MEither a b -> c
 meither f _ (MLeft a) = f a
 meither _ f (MRight b) = f b
@@ -57,3 +62,5 @@ instance Monad m => Monad (MEitherT e m) where
     return = MEitherT . return . return
     (MEitherT x) >>= f = MEitherT $
         x >>= meither (return . MLeft) (runMEitherT . f)
+instance Monad m => Failure e (MEitherT e m) where
+    failure = MEitherT . return . MLeft
