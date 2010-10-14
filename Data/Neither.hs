@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
 -- | This module provides three different datatypes: 'AEither' is the
 -- applicative version of Either. It does not provide a monad instance, and
 -- 'mappend's together error values. 'MEither' is the monadic version, which
@@ -42,7 +43,7 @@ import Data.Typeable
 import Data.Data
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
-import Control.Monad.Exception
+import Control.Monad.Invert
 
 class Neither e where
   left :: a -> e a b
@@ -140,14 +141,10 @@ instance MonadTrans (MEitherT e) where
     lift = MEitherT . liftM MRight
 instance MonadIO m => MonadIO (MEitherT e m) where
     liftIO = lift . liftIO
-instance MonadException m => MonadException (MEitherT e m) where
-    throw = lift . throw
-    m `catch` f = mapMEitherT (\m' -> m' `catch` \e -> runMEitherT $ f e) m
-instance MonadAsyncException m => MonadAsyncException (MEitherT e m) where
-    block = mapMEitherT block
-    unblock = mapMEitherT unblock
-instance MonadBracket m => MonadBracket (MEitherT e m) where
-    bracket acquire cleanup action = block $ do
-        x <- acquire
-        unblock $ action x `finally` cleanup x
-    finally action after = mapMEitherT (`finally` runMEitherT after) action
+
+instance MonadInvertIO m => MonadInvertIO (MEitherT e m) where
+    newtype InvertedIO (MEitherT e m) a =
+        InvErrorIO { runInvErrorIO :: InvertedIO m (MEither e a) }
+    type InvertedArg (MEitherT e m) = InvertedArg m
+    invertIO = liftM (fmap InvErrorIO) . invertIO . runMEitherT
+    revertIO f = MEitherT $ revertIO $ liftM runInvErrorIO . f
