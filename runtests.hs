@@ -27,6 +27,7 @@ main = defaultMain
     , testSuite "WriterT" runWriterT'
     , testSuite "ErrorT" runErrorT'
     , testSuite "StateT" $ flip evalStateT "state state"
+    , testCase "ErrorT throwError" case_throwError
     ]
   where
     runWriterT' :: Functor m => WriterT [Int] m a -> m a
@@ -95,3 +96,13 @@ case_bracket_ run = do
         (liftIO $ writeIORef i 3)
     j <- readIORef i
     j @?= 4
+
+case_throwError :: Assertion
+case_throwError = do
+    i <- newIORef one
+    Left "throwError" <- runErrorT $
+        (liftIO (writeIORef i 2) >> throwError "throwError")
+        `finally`
+        (liftIO $ writeIORef i 3)
+    j <- readIORef i
+    j @?= 3
