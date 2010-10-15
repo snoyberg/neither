@@ -24,7 +24,6 @@ class Monad m => MonadInvertIO m where
     type InvertedArg m
     invertIO :: m a -> InvertedArg m -> IO (InvertedIO m a)
     revertIO :: (InvertedArg m -> IO (InvertedIO m a)) -> m a
-    invertedBind :: (a -> m b) -> InvertedIO m a -> m b
 
 instance MonadInvertIO m => MonadInvertIO (IdentityT m) where
     newtype InvertedIO (IdentityT m) a =
@@ -32,8 +31,6 @@ instance MonadInvertIO m => MonadInvertIO (IdentityT m) where
     type InvertedArg (IdentityT m) = InvertedArg m
     invertIO = liftM (fmap InvIdentIO) . invertIO . runIdentityT
     revertIO f = IdentityT $ revertIO $ liftM runInvIdentIO . f
-    invertedBind f (InvIdentIO x) =
-        IdentityT $ invertedBind (runIdentityT . f) x
 
 instance (Error e, MonadInvertIO m) => MonadInvertIO (ErrorT e m) where
     newtype InvertedIO (ErrorT e m) a =
@@ -41,12 +38,6 @@ instance (Error e, MonadInvertIO m) => MonadInvertIO (ErrorT e m) where
     type InvertedArg (ErrorT e m) = InvertedArg m
     invertIO = liftM (fmap InvErrorIO) . invertIO . runErrorT
     revertIO f = ErrorT $ revertIO $ liftM runInvErrorIO . f
-    invertedBind f (InvErrorIO x) =
-        ErrorT $ invertedBind (runErrorT . g f) x
-      where
-        g :: Monad m => (a -> ErrorT e m b) -> Either e a -> ErrorT e m b
-        g _ (Left e) = ErrorT $ return $ Left e
-        g h (Right a) = h a
 
 instance MonadInvertIO m => MonadInvertIO (ReaderT r m) where
     newtype InvertedIO (ReaderT r m) a =
@@ -54,8 +45,6 @@ instance MonadInvertIO m => MonadInvertIO (ReaderT r m) where
     type InvertedArg (ReaderT r m) = (r, InvertedArg m)
     invertIO (ReaderT f) (r, arg) = liftM InvReaderIO $ invertIO (f r) arg
     revertIO f = ReaderT $ \r -> revertIO (\a -> liftM runInvReaderIO (f (r, a)))
-    invertedBind f (InvReaderIO x) =
-        ReaderT $ \r -> invertedBind (flip runReaderT r . f) x
 
 instance (Monoid w, MonadInvertIO m) => MonadInvertIO (WriterT w m) where
     newtype InvertedIO (WriterT w m) a =
@@ -63,13 +52,6 @@ instance (Monoid w, MonadInvertIO m) => MonadInvertIO (WriterT w m) where
     type InvertedArg (WriterT w m) = InvertedArg m
     invertIO = liftM (fmap InvWriterIO) . invertIO . runWriterT
     revertIO f = WriterT $ revertIO $ liftM runInvWriterIO . f
-    invertedBind f (InvWriterIO x) =
-        WriterT $ invertedBind (runWriterT . g f) x
-      where
-        g h (a, w) = do
-            tell w -- FIXME does this go second???
-            b <- h a
-            return b
 
 instance MonadInvertIO m => MonadInvertIO (StateT s m) where
     newtype InvertedIO (StateT s m) a =
@@ -77,18 +59,12 @@ instance MonadInvertIO m => MonadInvertIO (StateT s m) where
     type InvertedArg (StateT s m) = (s, InvertedArg m)
     invertIO (StateT f) (r, arg) = liftM InvStateIO $ invertIO (f r) arg
     revertIO f = StateT $ \r -> revertIO (\a -> liftM runInvStateIO (f (r, a)))
-    invertedBind f (InvStateIO x) =
-        StateT $ \s -> invertedBind (flip runStateT s . g f) x -- something wrong here
-      where
-        g :: (a -> StateT s m b) -> (a, s) -> StateT s m b
-        g h (a, sFIXME) = h a
 
 instance MonadInvertIO IO where
     newtype InvertedIO IO a = InvIO { runInvIO :: a }
     type InvertedArg IO = ()
     invertIO = const . liftM InvIO
     revertIO = liftM runInvIO . ($ ())
-    invertedBind f (InvIO a) = f a
 
 finally :: MonadInvertIO m => m a -> m b -> m a
 finally action after =
@@ -111,8 +87,8 @@ bracket :: MonadInvertIO m
         -> m c
 bracket acquire cleanup action = revertIO $ \a -> E.bracket
     (invertIO acquire a)
-    (\x -> invertIO (invertedBind cleanup x) a)
-    (\x -> invertIO (invertedBind action x) a)
+    (\x -> invertIO (revertIO (const $ return x) >>= cleanup) a)
+    (\x -> invertIO (revertIO (const $ return x) >>= action) a)
 
 bracket_ :: MonadInvertIO m => m a -> m b -> m c -> m c
 bracket_ acquire cleanup action = revertIO $ \a -> E.bracket_
