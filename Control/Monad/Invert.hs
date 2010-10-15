@@ -9,6 +9,7 @@ module Control.Monad.Invert
     , unblock
     , bracket
     , bracket_
+    , onException
       -- * Memory allocation
     , alloca
     , allocaBytes
@@ -29,8 +30,9 @@ import Foreign.Storable (Storable)
 import Foreign.Ptr (Ptr)
 import Foreign.ForeignPtr (ForeignPtr)
 import qualified Foreign.ForeignPtr as F
+import Control.Monad.IO.Class (MonadIO)
 
-class Monad m => MonadInvertIO m where
+class MonadIO m => MonadInvertIO m where
     data InvertedIO m :: * -> *
     type InvertedArg m
     invertIO :: m a -> InvertedArg m -> IO (InvertedIO m a)
@@ -80,6 +82,10 @@ instance MonadInvertIO IO where
 finally :: MonadInvertIO m => m a -> m b -> m a
 finally action after =
     revertIO $ \a -> invertIO action a `E.finally` invertIO after a
+
+onException :: MonadInvertIO m => m a -> m b -> m a
+onException action after =
+    revertIO $ \a -> invertIO action a `E.onException` invertIO after a
 
 catch :: (E.Exception e, MonadInvertIO m) => m a -> (e -> m a) -> m a
 catch action handler =

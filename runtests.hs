@@ -43,6 +43,7 @@ testSuite s run = testGroup s
     -- FIXME test block and unblock
     , testCase "bracket" $ case_bracket run
     , testCase "bracket_" $ case_bracket_ run
+    , testCase "onException" $ case_onException run
     ]
 
 ignore :: IO () -> IO ()
@@ -97,6 +98,20 @@ case_bracket_ run = do
         (liftIO $ writeIORef i 3)
     j <- readIORef i
     j @?= 4
+
+case_onException :: (MonadIO m, MonadInvertIO m) => (m () -> IO ()) -> Assertion
+case_onException run = do
+    i <- newIORef one
+    ignore $ run $ onException
+        (liftIO (writeIORef i 2) >> error "ignored")
+        (liftIO $ writeIORef i 3)
+    j <- readIORef i
+    j @?= 3
+    ignore $ run $ onException
+        (liftIO $ writeIORef i 4)
+        (liftIO $ writeIORef i 5)
+    k <- readIORef i
+    k @?= 4
 
 case_throwError :: Assertion
 case_throwError = do
