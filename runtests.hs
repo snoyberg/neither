@@ -28,6 +28,7 @@ main = defaultMain
     , testSuite "ErrorT" runErrorT'
     , testSuite "StateT" $ flip evalStateT "state state"
     , testCase "ErrorT throwError" case_throwError
+    , testCase "WriterT tell" case_tell
     ]
   where
     runWriterT' :: Functor m => WriterT [Int] m a -> m a
@@ -106,3 +107,14 @@ case_throwError = do
         (liftIO $ writeIORef i 3)
     j <- readIORef i
     j @?= 3
+
+case_tell :: Assertion
+case_tell = do
+    i <- newIORef one
+    ((), w) <- runWriterT $ bracket_
+        (liftIO (writeIORef i 2) >> tell [1])
+        (liftIO (writeIORef i 4) >> tell [3])
+        (liftIO (writeIORef i 3) >> tell [2])
+    j <- readIORef i
+    j @?= 4
+    w @?= [2] -- FIXME should this be [1,2]?
