@@ -11,6 +11,8 @@ module Control.Monad.Invert
     , bracket_
       -- * Memory allocation
     , alloca
+    , allocaBytes
+    , withForeignPtr
     ) where
 
 import Prelude hiding (catch)
@@ -25,6 +27,8 @@ import Data.Monoid (Monoid)
 import qualified Foreign.Marshal.Alloc as A
 import Foreign.Storable (Storable)
 import Foreign.Ptr (Ptr)
+import Foreign.ForeignPtr (ForeignPtr)
+import qualified Foreign.ForeignPtr as F
 
 class Monad m => MonadInvertIO m where
     data InvertedIO m :: * -> *
@@ -105,3 +109,10 @@ bracket_ acquire cleanup action = revertIO $ \a -> E.bracket_
 
 alloca :: (Storable a, MonadInvertIO m) => (Ptr a -> m b) -> m b
 alloca f = revertIO $ \x -> A.alloca $ flip invertIO x . f
+
+allocaBytes :: MonadInvertIO m => Int -> (Ptr a -> m b) -> m b
+allocaBytes i f = revertIO $ \x -> A.allocaBytes i $ flip invertIO x . f
+
+withForeignPtr :: MonadInvertIO m => ForeignPtr a -> (Ptr a -> m b) -> m b
+withForeignPtr p f =
+    revertIO $ \x -> F.withForeignPtr p $ flip invertIO x . f
