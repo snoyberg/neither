@@ -1,12 +1,17 @@
 {-# LANGUAGE TypeFamilies #-}
 module Control.Monad.Invert
-    ( MonadInvertIO (..)
+    (
+      -- * Typeclass
+      MonadInvertIO (..)
+      -- * Exceptions
     , finally
     , catch
     , block
     , unblock
     , bracket
     , bracket_
+      -- * Memory allocation
+    , alloca
     ) where
 
 import Prelude hiding (catch)
@@ -18,6 +23,9 @@ import Control.Monad.Trans.State
 import Control.Monad (liftM)
 import qualified Control.Exception as E
 import Data.Monoid (Monoid)
+import qualified Foreign.Marshal.Alloc as A
+import Foreign.Storable (Storable)
+import Foreign.Ptr (Ptr)
 
 class Monad m => MonadInvertIO m where
     data InvertedIO m :: * -> *
@@ -95,3 +103,6 @@ bracket_ acquire cleanup action = revertIO $ \a -> E.bracket_
     (invertIO acquire a)
     (invertIO cleanup a)
     (invertIO action a)
+
+alloca :: (Storable a, MonadInvertIO m) => (Ptr a -> m b) -> m b
+alloca f = revertIO $ \x -> alloca $ flip invertIO x . f
