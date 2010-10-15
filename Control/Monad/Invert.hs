@@ -1,7 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 module Control.Monad.Invert
-    (
-      -- * Typeclass
+    ( -- * Typeclass
       MonadInvertIO (..)
       -- * Exceptions
     , finally
@@ -105,4 +104,4 @@ bracket_ acquire cleanup action = revertIO $ \a -> E.bracket_
     (invertIO action a)
 
 alloca :: (Storable a, MonadInvertIO m) => (Ptr a -> m b) -> m b
-alloca f = revertIO $ \x -> alloca $ flip invertIO x . f
+alloca f = revertIO $ \x -> A.alloca $ flip invertIO x . f
