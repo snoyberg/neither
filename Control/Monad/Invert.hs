@@ -97,6 +97,9 @@ block action = revertIO $ \a -> E.block $ invertIO action a
 unblock :: MonadInvertIO m => m a -> m a
 unblock action = revertIO $ \a -> E.unblock $ invertIO action a
 
+-- | There is a very important distinction between this function and
+-- 'bracket_': in this version, the monadic side effects from the
+-- initialization function and kept, while in bracket_ they are discarded.
 bracket :: MonadInvertIO m
         => m a
         -> (a -> m b)
@@ -107,6 +110,7 @@ bracket acquire cleanup action = revertIO $ \a -> E.bracket
     (\x -> invertIO (revertIO (const $ return x) >>= cleanup) a)
     (\x -> invertIO (revertIO (const $ return x) >>= action) a)
 
+-- | See 'bracket'.
 bracket_ :: MonadInvertIO m => m a -> m b -> m c -> m c
 bracket_ acquire cleanup action = revertIO $ \a -> E.bracket_
     (invertIO acquire a)
