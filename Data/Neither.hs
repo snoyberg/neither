@@ -42,8 +42,9 @@ import Control.Failure
 import Data.Typeable
 import Data.Data
 import Control.Monad.IO.Class
+import Control.Monad.IO.Peel
 import Control.Monad.Trans.Class
-import Control.Monad.Invert
+import Control.Monad.Trans.Peel
 
 class Neither e where
   left :: a -> e a b
@@ -142,9 +143,9 @@ instance MonadTrans (MEitherT e) where
 instance MonadIO m => MonadIO (MEitherT e m) where
     liftIO = lift . liftIO
 
-instance MonadInvertIO m => MonadInvertIO (MEitherT e m) where
-    newtype InvertedIO (MEitherT e m) a =
-        InvErrorIO { runInvErrorIO :: InvertedIO m (MEither e a) }
-    type InvertedArg (MEitherT e m) = InvertedArg m
-    invertIO = liftM (fmap InvErrorIO) . invertIO . runMEitherT
-    revertIO f = MEitherT $ revertIO $ liftM runInvErrorIO . f
+instance MonadTransPeel (MEitherT e) where
+  peel = return $ \m -> do
+    xe <- runMEitherT m
+    return $ either throwMEither return xe
+instance MonadPeelIO m => MonadPeelIO (MEitherT e m) where
+  peelIO = liftPeel peelIO

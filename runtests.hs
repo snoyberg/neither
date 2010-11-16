@@ -1,42 +1,28 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-import Prelude hiding (catch)
+import Prelude hiding (catch, either)
 
 import Test.Framework (defaultMain, testGroup, Test)
 import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
 
-import Control.Monad.Invert
 import Control.Exception (SomeException, Exception, throwIO)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Data.IORef
 import Data.Typeable (Typeable)
 
-import Control.Monad.Trans.Identity
-import Control.Monad.Trans.Reader
-import Control.Monad.Trans.Writer
-import Control.Monad.Trans.Error
-import Control.Monad.Trans.State
-
-throw :: (MonadIO m, Exception e) => e -> m a
-throw = liftIO . throwIO
+import Data.Neither
+import Control.Exception.Peel
+import Control.Monad.IO.Peel
 
 main :: IO ()
 main = defaultMain
-    [ testSuite "IdentityT" runIdentityT
-    , testSuite "ReaderT" $ flip runReaderT "reader state"
-    , testSuite "WriterT" runWriterT'
-    , testSuite "ErrorT" runErrorT'
-    , testSuite "StateT" $ flip evalStateT "state state"
-    , testCase "ErrorT throwError" case_throwError
-    , testCase "WriterT tell" case_tell
+    [ testSuite "MEitherT" runMEitherT'
     ]
   where
-    runWriterT' :: Functor m => WriterT [Int] m a -> m a
-    runWriterT' = fmap fst . runWriterT
-    runErrorT' :: Functor m => ErrorT String m () -> m ()
-    runErrorT' = fmap (either (const ()) id) . runErrorT
+    runMEitherT' :: Functor m => MEitherT String m () -> m ()
+    runMEitherT' = fmap (either (const ()) id) . runMEitherT
 
-testSuite :: (MonadIO m, MonadInvertIO m) => String -> (m () -> IO ()) -> Test
+testSuite :: (MonadIO m, MonadPeelIO m) => String -> (m () -> IO ()) -> Test
 testSuite s run = testGroup s
     [ testCase "finally" $ case_finally run
     , testCase "catch" $ case_catch run
@@ -60,7 +46,7 @@ instance Exception Exc
 one :: Int
 one = 1
 
-case_finally :: (MonadIO m, MonadInvertIO m) => (m () -> IO ()) -> Assertion
+case_finally :: (MonadIO m, MonadPeelIO m) => (m () -> IO ()) -> Assertion
 case_finally run = do
     i <- newIORef one
     ignore
@@ -70,7 +56,7 @@ case_finally run = do
     j <- readIORef i
     j @?= 3
 
-case_catch :: (MonadIO m, MonadInvertIO m) => (m () -> IO ()) -> Assertion
+case_catch :: (MonadIO m, MonadPeelIO m) => (m () -> IO ()) -> Assertion
 case_catch run = do
     i <- newIORef one
     run $ (do
@@ -79,7 +65,7 @@ case_catch run = do
     j <- readIORef i
     j @?= 3
 
-case_bracket :: (MonadIO m, MonadInvertIO m) => (m () -> IO ()) -> Assertion
+case_bracket :: (MonadIO m, MonadPeelIO m) => (m () -> IO ()) -> Assertion
 case_bracket run = do
     i <- newIORef one
     ignore $ run $ bracket
@@ -89,7 +75,7 @@ case_bracket run = do
     j <- readIORef i
     j @?= 4
 
-case_bracket_ :: (MonadIO m, MonadInvertIO m) => (m () -> IO ()) -> Assertion
+case_bracket_ :: (MonadIO m, MonadPeelIO m) => (m () -> IO ()) -> Assertion
 case_bracket_ run = do
     i <- newIORef one
     ignore $ run $ bracket_
@@ -99,7 +85,7 @@ case_bracket_ run = do
     j <- readIORef i
     j @?= 4
 
-case_onException :: (MonadIO m, MonadInvertIO m) => (m () -> IO ()) -> Assertion
+case_onException :: (MonadIO m, MonadPeelIO m) => (m () -> IO ()) -> Assertion
 case_onException run = do
     i <- newIORef one
     ignore $ run $ onException
@@ -113,23 +99,12 @@ case_onException run = do
     k <- readIORef i
     k @?= 4
 
-case_throwError :: Assertion
-case_throwError = do
+case_throwMEither :: Assertion
+case_throwMEither = do
     i <- newIORef one
-    Left "throwError" <- runErrorT $
-        (liftIO (writeIORef i 2) >> throwError "throwError")
+    MLeft "throwMEither" <- runMEitherT $
+        (liftIO (writeIORef i 2) >> throwMEither "throwMEither")
         `finally`
         (liftIO $ writeIORef i 3)
     j <- readIORef i
     j @?= 3
-
-case_tell :: Assertion
-case_tell = do
-    i <- newIORef one
-    ((), w) <- runWriterT $ bracket_
-        (liftIO (writeIORef i 2) >> tell [1])
-        (liftIO (writeIORef i 4) >> tell [3])
-        (liftIO (writeIORef i 3) >> tell [2])
-    j <- readIORef i
-    j @?= 4
-    w @?= [2] -- FIXME should this be [1,2]?
